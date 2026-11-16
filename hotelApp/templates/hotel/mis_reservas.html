@@ -4,6 +4,24 @@
 {% block content %}
 <div class="container my-5">
   <h1 class="h2 mb-4">Mis reservas</h1>
+
+  {% if notificaciones %}
+    <div class="mb-4">
+      {% for noti in notificaciones %}
+        <div class="alert alert-warning alert-dismissible fade show shadow-sm border-warning" role="alert">
+          <div class="d-flex align-items-center">
+            <i class="bi bi-bell-fill fs-5 me-2 text-warning"></i>
+            <div>
+              <strong>Aviso de Hotel Ríos del Sur:</strong> {{ noti.mensaje }}
+              <small class="text-muted d-block">{{ noti.creada|date:"d/m/Y H:i" }}</small>
+            </div>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
   <div class="row g-3">
   {% for r in reservas %}
     <div class="col-md-6"><div class="panel-card">

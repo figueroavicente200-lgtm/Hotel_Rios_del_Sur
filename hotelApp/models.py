@@ -3,7 +3,7 @@ from datetime import date
 
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
-from django.core.validators import MinValueValidator, RegexValidator
+from django.core.validators import MinValueValidator
 from django.db import models
 
 ESTADOS_BLOQUEANTES = ["PENDIENTE", "CONFIRMADA", "ACTIVA"]  # ocupan la habitación en el calendario
@@ -181,3 +181,16 @@ class Reserva(models.Model):
         self.save(update_fields=["estado"])
         self.habitacion.estado = "LIMPIEZA"
         self.habitacion.save(update_fields=["estado"])
+
+
+class Notificacion(models.Model):
+    huesped = models.ForeignKey(Huesped, on_delete=models.CASCADE, related_name='notificaciones')
+    mensaje = models.CharField(max_length=255)
+    leida = models.BooleanField(default=False)
+    creada = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-creada']
+
+    def __str__(self):
+        return f"Aviso para {self.huesped.nombre_completo}: {self.mensaje}"

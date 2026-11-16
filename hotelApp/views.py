@@ -2,16 +2,16 @@ from datetime import date
 
 from django.contrib import messages
 from django.contrib.auth import login
+from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.views import LoginView
 from django.core.cache import cache
-from django.contrib.auth.decorators import login_required, user_passes_test
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
 from .forms import BusquedaForm, RegistroForm, ReservaForm
-from .models import ESTADOS_BLOQUEANTES, Habitacion, Reserva
+from .models import ESTADOS_BLOQUEANTES, Habitacion, Notificacion, Reserva
 from .services import crear_paquete, crear_reserva
 
 es_recepcion = user_passes_test(lambda u: u.is_active and u.is_staff, login_url="login")
@@ -52,16 +52,12 @@ def inicio(request):
         personas_buscadas = d["personas"]
         tipo_solicitado = d["tipo"] or None
 
-        # 1. Buscar habitaciones individuales que cumplan con la capacidad y tipo
         habitaciones = list(Habitacion.objects.disponibles(d["ingreso"], d["salida"], personas_buscadas, tipo_solicitado))
         for h in habitaciones:
             h.total = h.precio_noche * noches
 
-        # 2. Si no hay individuales y no se filtró por un tipo estricto, buscar combinaciones para grupos grandes (ej. > 4 personas)
         if not habitaciones and not tipo_solicitado and personas_buscadas > 4:
             libres_en_fechas = list(Habitacion.objects.disponibles(d["ingreso"], d["salida"], personas=1, tipo=None))
-            
-            # Buscar parejas de habitaciones cuya suma de capacidad cubra el total de personas
             for i in range(len(libres_en_fechas)):
                 for j in range(i + 1, len(libres_en_fechas)):
                     h1 = libres_en_fechas[i]
@@ -106,7 +102,6 @@ def registro(request):
 @login_required
 def reservar(request, pk):
     habitacion = get_object_or_404(Habitacion, pk=pk)
-    
     hab2_pk = request.GET.get('hab2', '')
     habitacion_2 = get_object_or_404(Habitacion, pk=int(hab2_pk)) if hab2_pk.isdigit() else None
     
@@ -115,18 +110,15 @@ def reservar(request, pk):
         messages.error(request, "Tu usuario no tiene ficha de huésped. Usa una cuenta de cliente.")
         return redirect("inicio")
         
-    # Capturar fechas y personas desde GET o desde el POST anterior si hubo error de validación
     initial = {
         'ingreso': request.GET.get('ingreso') or request.POST.get('ingreso'),
         'salida': request.GET.get('salida') or request.POST.get('salida'),
         'personas': request.GET.get('personas') or request.POST.get('personas')
     }
-    # Filtrar valores vacíos
     initial = {k: v for k, v in initial.items() if v}
 
     form = ReservaForm(request.POST or None, initial=initial)
     total = None
-    
     precio_por_noche = habitacion.precio_noche + (habitacion_2.precio_noche if habitacion_2 else 0)
 
     if request.method == "POST" and form.is_valid():
@@ -161,13 +153,17 @@ def reservar(request, pk):
 def mis_reservas(request):
     huesped = getattr(request.user, "huesped", None)
     reservas = Reserva.objects.filter(huesped=huesped).select_related("habitacion") if huesped else []
-    return render(request, "hotel/mis_reservas.html", {"reservas": reservas})
+    notificaciones = huesped.notificaciones.filter(leida=False) if huesped else []
+    return render(request, "hotel/mis_reservas.html", {
+        "reservas": reservas,
+        "notificaciones": notificaciones
+    })
 
 
 @login_required
 @require_POST
 def cancelar_reserva(request, pk):
-    reserva = get_object_or_404(Reserva, pk=pk, huesped__usuario=request.user)  # solo las propias
+    reserva = get_object_or_404(Reserva, pk=pk, huesped__usuario=request.user)
     try:
         reserva.cancelar()
         messages.success(request, f"Reserva #{reserva.pk} cancelada.")
@@ -203,7 +199,7 @@ def panel(request):
 @es_recepcion
 @require_POST
 def accion_reserva(request, pk, accion):
-    reserva = get_object_or_404(Reserva.objects.select_related("habitacion"), pk=pk)
+    reserva = get_object_or_404(Reserva.objects.select_related("habitacion", "huesped"), pk=pk)
     acciones = {"confirmar": reserva.confirmar, "rechazar": reserva.cancelar,
                 "checkin": reserva.check_in, "checkout": reserva.check_out}
     if accion not in acciones:
@@ -212,7 +208,20 @@ def accion_reserva(request, pk, accion):
     try:
         with transaction.atomic():
             acciones[accion]()
-        messages.success(request, f"Reserva #{reserva.pk}: {accion} realizado correctamente.")
+            
+            # Generar mensaje automático para el cliente según la acción realizada
+            mensajes_cliente = {
+                "confirmar": f"¡Tu reserva #{reserva.pk} de la Habitación {reserva.habitacion.numero} ({reserva.fecha_ingreso:%d/%m/%Y}) ha sido CONFIRMADA por recepción!",
+                "rechazar": f"Recepción ha CANCELADO tu reserva #{reserva.pk} de la Habitación {reserva.habitacion.numero} ({reserva.fecha_ingreso:%d/%m/%Y}).",
+                "checkin": f"Se registró tu CHECK-IN en la Habitación {reserva.habitacion.numero}. ¡Bienvenido a Hotel Ríos del Sur!",
+                "checkout": f"Se registró tu CHECK-OUT de la Habitación {reserva.habitacion.numero}. ¡Gracias por hospedarte con nosotros!"
+            }
+            Notificacion.objects.create(
+                huesped=reserva.huesped,
+                mensaje=mensajes_cliente[accion]
+            )
+
+        messages.success(request, f"Reserva #{reserva.pk}: {accion} realizado correctamente y cliente notificado.")
     except ValidationError as e:
         messages.error(request, e.messages[0])
     return redirect(request.POST.get("next") or "panel")

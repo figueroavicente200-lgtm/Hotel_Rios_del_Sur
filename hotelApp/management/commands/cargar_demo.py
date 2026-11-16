@@ -25,7 +25,23 @@ class Command(BaseCommand):
 
         User.objects.filter(username="recepcion").delete()
         User.objects.create_user("recepcion", password=CLAVE, is_staff=True, first_name="Recepción")
-
+        user_camila = User.objects.create_user(username='crojas', password='Demo#2026')
+        Huesped.objects.create(
+            usuario=user_camila,
+            nombre_completo="Camila Rojas",
+            rut="15.123.456-7",  # Asegúrate de que cumpla con el Módulo 11
+            correo="camila.rojas@mail.com",
+            telefono="+56 9 8765 4321"
+        )
+        user_diego = User.objects.create_user(username='dmunoz', password='Demo#2026')
+        Huesped.objects.create(
+            usuario=user_diego,
+            nombre_completo="Diego Muñoz",
+            rut="18.987.654-3",
+            correo="diego.munoz@mail.com",
+            telefono="+56 9 1234 5678"
+        )
+        
         huespedes = []
         for usuario, nombre, rut, correo, tel in HUESPEDES:
             u, _ = User.objects.get_or_create(username=usuario, defaults={"email": correo, "first_name": nombre.split()[0]})
