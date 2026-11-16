@@ -1,0 +1,25 @@
+{% extends 'hotel/base.html' %}
+{% load humanize %}
+{% block title %}Mis reservas · Ríos del Sur{% endblock %}
+{% block content %}
+<div class="container my-5">
+  <h1 class="h2 mb-4">Mis reservas</h1>
+  <div class="row g-3">
+  {% for r in reservas %}
+    <div class="col-md-6"><div class="panel-card">
+      <div class="d-flex justify-content-between"><h5 class="mb-1">{{ r.habitacion }}</h5><span class="estado estado-{{ r.estado|lower }}">{{ r.get_estado_display }}</span></div>
+      <p class="mb-1 text-secondary"><i class="bi bi-calendar-event"></i> {{ r.fecha_ingreso|date:"d/m/Y" }} → {{ r.fecha_salida|date:"d/m/Y" }} · {{ r.noches }} noche{{ r.noches|pluralize }} · {{ r.personas }} pers.</p>
+      <div class="d-flex justify-content-between align-items-center">
+        <b>${{ r.monto_total|intcomma }}</b>
+        {% if r.estado == 'PENDIENTE' or r.estado == 'CONFIRMADA' %}
+        <form method="post" action="{% url 'cancelar_reserva' r.pk %}" onsubmit="return confirm('¿Cancelar esta reserva?')">{% csrf_token %}
+          <button class="btn btn-sm btn-outline-danger">Cancelar</button></form>{% endif %}
+      </div>
+    </div></div>
+  {% empty %}
+    <div class="col-12"><div class="panel-card text-center py-5"><i class="bi bi-suitcase2 fs-1 text-secondary"></i>
+      <p class="mt-2">Aún no tienes reservas.</p><a class="btn btn-teal" href="{% url 'inicio' %}">Ver habitaciones</a></div></div>
+  {% endfor %}
+  </div>
+</div>
+{% endblock %}

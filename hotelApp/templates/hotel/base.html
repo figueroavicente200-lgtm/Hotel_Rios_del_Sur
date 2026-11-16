@@ -1,0 +1,45 @@
+{% load static %}
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Hotel Ríos del Sur{% endblock %}</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'hotel/css/style.css' %}">
+</head>
+<body>
+<nav class="navbar navbar-expand-lg navbar-dark">
+  <div class="container">
+    <a class="navbar-brand brand" href="{% url 'inicio' %}"><i class="bi bi-water"></i> Ríos del Sur</a>
+    <button class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#nav"><span class="navbar-toggler-icon"></span></button>
+    <div class="collapse navbar-collapse" id="nav">
+      <ul class="navbar-nav me-auto">
+        <li class="nav-item"><a class="nav-link" href="{% url 'inicio' %}">Habitaciones</a></li>
+        {% if user.is_authenticated %}<li class="nav-item"><a class="nav-link" href="{% url 'mis_reservas' %}">Mis reservas</a></li>{% endif %}
+        {% if user.is_staff %}<li class="nav-item"><a class="nav-link" href="{% url 'panel' %}">Panel de recepción</a></li>{% endif %}
+        {% if user.is_superuser %}<li class="nav-item"><a class="nav-link" href="{% url 'admin:index' %}">Administración</a></li>{% endif %}
+      </ul>
+      {% if user.is_authenticated %}
+        <form method="post" action="{% url 'logout' %}" class="d-flex align-items-center gap-3">{% csrf_token %}
+          <span class="text-white-50 small"><i class="bi bi-person-circle"></i> {{ user.get_username }}</span>
+          <button class="btn btn-sm btn-outline-light">Salir</button>
+        </form>
+      {% else %}
+        <a class="btn btn-sm btn-outline-light me-2" href="{% url 'login' %}">Ingresar</a>
+        <a class="btn btn-sm btn-gold" href="{% url 'registro' %}">Crear cuenta</a>
+      {% endif %}
+    </div>
+  </div>
+</nav>
+<main>
+  {% if messages %}<div class="container mt-3">{% for m in messages %}
+    <div class="alert alert-{% if m.tags == 'error' %}danger{% else %}{{ m.tags }}{% endif %} alert-dismissible fade show">{{ m }}<button class="btn-close" data-bs-dismiss="alert"></button></div>
+  {% endfor %}</div>{% endif %}
+  {% block content %}{% endblock %}
+</main>
+<footer><div class="container d-flex justify-content-between flex-wrap">
+  <span>© Hotel Ríos del Sur · Valdivia, Chile</span><span>Proyecto Ingeniería de Software · INACAP</span></div></footer>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body></html>

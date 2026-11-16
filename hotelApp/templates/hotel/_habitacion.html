@@ -1,0 +1,20 @@
+{% load humanize %}
+<div class="room-card d-flex flex-column">
+  <div class="room-top tipo-{{ h.tipo|lower }}"><span class="num">Hab. {{ h.numero }}</span><i class="bi {{ h.icono }}"></i></div>
+  <div class="p-3 d-flex flex-column flex-grow-1">
+    <div class="d-flex justify-content-between align-items-start">
+      <h5 class="mb-1">{{ h.get_tipo_display }}</h5>
+      <span class="estado estado-{{ h.estado|lower }}">{{ h.get_estado_display }}</span>
+    </div>
+    {% if h.mensaje_limpieza %}<small class="text-warning-emphasis d-block mb-1"><i class="bi bi-clock"></i> {{ h.mensaje_limpieza }}</small>{% endif %}
+    <div class="mb-2"><span class="chip"><i class="bi bi-people"></i> {{ h.capacidad }} pers.</span></div>
+    <p class="text-secondary small flex-grow-1">{{ h.descripcion }}</p>
+    <div class="d-flex justify-content-between align-items-end">
+      <div>
+        <div class="price">${{ h.precio_noche|intcomma }} <small>/ noche</small></div>
+        {% if buscado %}<small class="text-secondary">Total {{ noches }} noche{{ noches|pluralize }}: <b>${{ h.total|intcomma }}</b></small>{% endif %}
+      </div>
+      <a class="btn btn-teal btn-sm" href="{% url 'reservar' h.pk %}{% if qs %}?{{ qs }}{% endif %}">Reservar</a>
+    </div>
+  </div>
+</div>
